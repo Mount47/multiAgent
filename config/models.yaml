@@ -1,0 +1,45 @@
+# Model provider configurations
+# DeepSeek and Ollama use OpenAI-compatible API, so they share the same client type
+
+providers:
+  openai-gpt4:
+    model: "gpt-4o"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    temperature: 0.3
+    model_info:
+      vision: true
+      function_calling: true
+      json_output: true
+      family: "gpt-4o"
+
+  deepseek-chat:
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+    api_key_env: "DEEPSEEK_API_KEY"
+    temperature: 0.3
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      family: "unknown"
+
+  ollama-local:
+    model: "qwen2.5:7b"
+    base_url: "http://localhost:11434/v1"
+    api_key_env: ""  # Ollama doesn't need API key
+    temperature: 0.3
+    model_info:
+      vision: false
+      function_calling: false
+      json_output: false
+      family: "unknown"
+
+# Which model provider each agent role uses
+# Override DEFAULT_MODEL from .env per-agent if needed
+agent_models:
+  product_manager: null   # null means use DEFAULT_MODEL
+  architect: null
+  coder: null
+  tester: null
+  reviewer: null

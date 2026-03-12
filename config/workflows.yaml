@@ -1,0 +1,72 @@
+# Workflow state machine definition
+# States, transitions, and agent mappings
+
+states:
+  - name: requirements_analysis
+    agent: product_manager
+    description: "Analyze user requirements and produce structured requirement document"
+
+  - name: architecture_design
+    agent: architect
+    description: "Design system architecture, define interfaces and tech stack"
+
+  - name: coding
+    agent: coder
+    description: "Generate code implementation based on requirements and design"
+
+  - name: testing
+    agent: tester
+    description: "Write and execute unit tests for the generated code"
+
+  - name: code_review
+    agent: reviewer
+    description: "Review code quality, check against requirements"
+
+  - name: revision
+    agent: coder
+    description: "Revise code based on reviewer or tester feedback"
+
+  - name: approved
+    agent: null
+    description: "Terminal state - code has been approved"
+
+# Initial state
+initial_state: requirements_analysis
+
+# State transitions with guard conditions
+transitions:
+  - from: requirements_analysis
+    to: architecture_design
+    guard: always  # Always proceed after requirements
+
+  - from: architecture_design
+    to: coding
+    guard: always
+
+  - from: coding
+    to: testing
+    guard: always
+
+  - from: testing
+    to: code_review
+    guard: tests_passed  # Only review if tests pass
+
+  - from: testing
+    to: revision
+    guard: tests_failed  # Go back to revise if tests fail
+
+  - from: code_review
+    to: approved
+    guard: review_approved  # Reviewer says APPROVED
+
+  - from: code_review
+    to: revision
+    guard: review_revision_needed  # Reviewer says REVISE
+
+  - from: revision
+    to: testing
+    guard: always  # After revision, always re-test
+
+# Maximum iterations to prevent infinite loops
+max_rounds: 30
+max_revisions: 3
