@@ -6,14 +6,14 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # LLM API Keys
+    gemini_api_key: str = ""
     openai_api_key: str = ""
     deepseek_api_key: str = ""
 
     # Default model provider
-    default_model: str = "deepseek-chat"
-
-    # Ollama
-    ollama_base_url: str = "http://localhost:11434/v1"
+    default_model: str = "gemini"
+    llm_timeout_seconds: float = 60.0
+    llm_max_retries: int = 2
 
     # Application
     workspace_dir: str = "./workspace"

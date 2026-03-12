@@ -1,7 +1,18 @@
 # Model provider configurations
-# DeepSeek and Ollama use OpenAI-compatible API, so they share the same client type
+# All providers use OpenAI-compatible API, so they share the same client type
 
 providers:
+  gemini:
+    model: "gemini-2.0-flash"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    api_key_env: "GEMINI_API_KEY"
+    temperature: 0.3
+    model_info:
+      vision: true
+      function_calling: true
+      json_output: true
+      family: "unknown"
+
   openai-gpt4:
     model: "gpt-4o"
     base_url: "https://api.openai.com/v1"

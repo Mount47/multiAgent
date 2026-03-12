@@ -1,4 +1,4 @@
-"""CLI entry point - run the multi-agent development workflow."""
+﻿"""CLI entry point - run the multi-agent development workflow."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def run_workflow(task_description: str) -> None:
     print("\n" + "=" * 60)
     print("  Multi-Agent Software Development System")
     print("=" * 60)
-    print(f"\n📋 Task: {task_description}\n")
+    print(f"\nTask: {task_description}\n")
     print("-" * 60)
 
     # Build the agent team
@@ -48,30 +48,39 @@ async def run_workflow(task_description: str) -> None:
 
     stream = team.run_stream(task=task_description)
 
-    async for event in stream:
-        # Display each agent message
-        if hasattr(event, "source") and hasattr(event, "content"):
-            agent_name = event.source
-            content = event.content
+    try:
+        async for event in stream:
+            # Display each agent message
+            if hasattr(event, "source") and hasattr(event, "content"):
+                agent_name = event.source
+                content = event.content
 
-            # Color-code by agent role
-            colors = {
-                "product_manager": "\033[94m",  # Blue
-                "architect": "\033[95m",        # Magenta
-                "coder": "\033[92m",            # Green
-                "tester": "\033[93m",           # Yellow
-                "reviewer": "\033[96m",         # Cyan
-            }
-            reset = "\033[0m"
-            color = colors.get(agent_name, "")
+                # Color-code by agent role
+                colors = {
+                    "product_manager": "\033[94m",  # Blue
+                    "architect": "\033[95m",  # Magenta
+                    "coder": "\033[92m",  # Green
+                    "tester": "\033[93m",  # Yellow
+                    "reviewer": "\033[96m",  # Cyan
+                }
+                reset = "\033[0m"
+                color = colors.get(agent_name, "")
 
-            print(f"\n{color}{'─' * 50}")
-            print(f"  🤖 [{agent_name.upper()}]")
-            print(f"{'─' * 50}{reset}")
-            print(content)
+                print(f"\n{color}{'-' * 50}")
+                print(f"  [AGENT: {agent_name.upper()}]")
+                print(f"{'-' * 50}{reset}")
+                print(content)
+    except RuntimeError as exc:
+        err_msg = str(exc)
+        if "APIConnectionError" in err_msg or "APITimeoutError" in err_msg:
+            print("\n[ERROR] LLM connection failed.")
+            print("Possible causes: network is unreachable, proxy is not configured, or endpoint is blocked.")
+            print("If needed, set HTTP_PROXY/HTTPS_PROXY in this shell and retry.")
+            return
+        raise
 
     print("\n" + "=" * 60)
-    print("  ✅ Workflow Complete!")
+    print("  Workflow Complete")
     print("=" * 60)
 
 

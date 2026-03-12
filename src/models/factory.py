@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+from config.settings import settings
 from src.models.config import ModelsConfig, ProviderConfig
 
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "models.yaml"
@@ -44,6 +45,8 @@ def create_model_client(provider_config: ProviderConfig) -> OpenAIChatCompletion
         base_url=provider_config.base_url,
         api_key=api_key,
         temperature=provider_config.temperature,
+        timeout=settings.llm_timeout_seconds,
+        max_retries=settings.llm_max_retries,
         model_info={
             "vision": provider_config.model_info.vision,
             "function_calling": provider_config.model_info.function_calling,
