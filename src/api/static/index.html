@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Agent Dev Console</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111b2e;
+      --line: #1f3358;
+      --text: #e8eefc;
+      --muted: #9bb0d9;
+      --accent: #49c6e5;
+      --ok: #41d39c;
+      --err: #ff6f7d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top right, #15315e, var(--bg) 45%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+    }
+    .card {
+      background: rgba(17, 27, 46, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+    label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 13px; }
+    textarea, select, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0a1425;
+      color: var(--text);
+      padding: 10px;
+      font-size: 14px;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    button {
+      margin-top: 12px;
+      background: linear-gradient(90deg, #2282b3, var(--accent));
+      color: #041022;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .status-running { color: var(--accent); }
+    .status-completed { color: var(--ok); }
+    .status-failed { color: var(--err); }
+    #events {
+      height: 70vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 13px;
+      background: #091121;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+    }
+    .event {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #14233f;
+    }
+    .event .meta { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; } #events { height: 56vh; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel" src="/static/react-app.jsx"></script>
+</body>
+</html>

@@ -32,6 +32,7 @@ dev = [
 
 [project.scripts]
 agent-dev = "src.cli:main"
+agent-dev-api = "src.api.app:run"
 
 [tool.ruff]
 line-length = 100

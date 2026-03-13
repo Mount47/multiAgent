@@ -7,6 +7,7 @@ from autogen_core.tools import FunctionTool
 from src.tools.code_executor import execute_python_code
 from src.tools.dependency_installer import install_dependency
 from src.tools.file_manager import read_file, write_file
+from src.tools.memory_tools import save_to_memory, search_memory
 from src.tools.test_runner import run_tests
 
 # Create FunctionTool instances
@@ -40,14 +41,26 @@ install_dep_tool = FunctionTool(
     description="Install a Python package using pip. Pass the package name.",
 )
 
+search_memory_tool = FunctionTool(
+    search_memory,
+    name="search_memory",
+    description="Search past conversations and code snippets for relevant context.",
+)
+
+save_to_memory_tool = FunctionTool(
+    save_to_memory,
+    name="save_to_memory",
+    description="Save important context (conversation or code) to memory for future retrieval.",
+)
+
 
 # Map agent roles to their tools
 ROLE_TOOLS: dict[str, list[FunctionTool]] = {
-    "product_manager": [],  # No tools - only analyzes requirements
-    "architect": [],  # No tools - only designs
-    "coder": [execute_code_tool, write_file_tool, read_file_tool, install_dep_tool],
+    "product_manager": [],
+    "architect": [search_memory_tool],
+    "coder": [execute_code_tool, write_file_tool, read_file_tool, install_dep_tool, search_memory_tool, save_to_memory_tool],
     "tester": [execute_code_tool, run_tests_tool, read_file_tool],
-    "reviewer": [],  # No tools - only reviews
+    "reviewer": [],
 }
 
 

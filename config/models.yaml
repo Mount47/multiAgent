@@ -42,9 +42,9 @@ providers:
     temperature: 0.3
     model_info:
       vision: false
-      function_calling: false
-      json_output: false
-      family: "unknown"
+      function_calling: true
+      json_output: true
+      family: "qwen"
 
 # Which model provider each agent role uses
 # Override DEFAULT_MODEL from .env per-agent if needed
