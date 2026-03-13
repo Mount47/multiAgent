@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from config.settings import settings
 from src.api.routes.providers import router as providers_router
 from src.api.routes.tasks import router as tasks_router
+from src.api.routes.workflow import router as workflow_router
 from src.api.task_service import TaskService
 from src.api.websocket.manager import TaskWebSocketManager
 from src.observability.metrics import MetricsCollector
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(tasks_router)
     app.include_router(providers_router)
+    app.include_router(workflow_router)
 
     static_dir = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")

@@ -20,6 +20,15 @@ from src.persistence.repository import TaskRepository
 
 logger = logging.getLogger(__name__)
 
+# Reverse lookup: agent name → workflow state name
+_AGENT_STATE_MAP: dict[str, str] = {
+    "product_manager": "requirements_analysis",
+    "architect": "architecture_design",
+    "coder": "coding",
+    "tester": "testing",
+    "reviewer": "code_review",
+}
+
 TaskStatus = Literal["queued", "running", "completed", "failed"]
 
 
@@ -125,10 +134,26 @@ class TaskService:
 
                     # Track state transitions for observability
                     if agent_name != current_agent:
-                        if current_agent:
+                        prev_agent = current_agent
+                        if prev_agent:
                             self._tracer.exit_state(task_id, estimated_tokens=len(content) // 4)
                         self._tracer.enter_state(task_id, state=agent_name, agent=agent_name)
                         current_agent = agent_name
+
+                        # Infer workflow state (coder after tester/reviewer = revision)
+                        if agent_name == "coder" and prev_agent in ("tester", "reviewer"):
+                            state_name = "revision"
+                        else:
+                            state_name = _AGENT_STATE_MAP.get(agent_name, agent_name)
+
+                        await self._ws_manager.publish(
+                            task_id,
+                            {
+                                "type": "state_change",
+                                "agent": agent_name,
+                                "state": state_name,
+                            },
+                        )
 
                     payload = TaskEventRecord(
                         timestamp=datetime.now(timezone.utc),
