@@ -66,3 +66,34 @@ class TestWorkflowTracer:
         tracer = WorkflowTracer()
         trace = tracer.end_workflow("nonexistent")
         assert trace is None
+
+    def test_prompt_completion_token_aggregation(self) -> None:
+        tracer = WorkflowTracer()
+        tracer.start_workflow("task-6")
+        tracer.enter_state("task-6", state="coding", agent="coder")
+        tracer.exit_state("task-6", prompt_tokens=120, completion_tokens=30)
+        trace = tracer.end_workflow("task-6")
+        assert trace is not None
+        assert trace.total_prompt_tokens == 120
+        assert trace.total_completion_tokens == 30
+        assert trace.total_tokens == 150
+        assert trace.transitions[0].estimated_tokens == 150
+
+    def test_tool_call_recording(self) -> None:
+        tracer = WorkflowTracer()
+        tracer.start_workflow("task-7")
+        tracer.record_tool_call(
+            task_id="task-7",
+            tool_name="read_file",
+            inputs='{"filename":"a.py"}',
+            output="print('ok')",
+            duration_ms=12.5,
+            success=True,
+        )
+        trace = tracer.end_workflow("task-7")
+        assert trace is not None
+        assert len(trace.tool_calls) == 1
+        call = trace.tool_calls[0]
+        assert call.tool_name == "read_file"
+        assert call.success is True
+        assert call.duration_ms == 12.5

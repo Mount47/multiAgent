@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import traceback
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from src.api.websocket.manager import TaskWebSocketManager
 from src.models.factory import ModelClientFactory
 from src.observability.metrics import MetricsCollector
+from src.observability.tool_observer import ToolObservation, tool_observer_context
 from src.observability.tracer import WorkflowTracer
 from src.orchestration.team_builder import build_team
 from src.persistence.database import get_db
@@ -126,21 +129,44 @@ class TaskService:
             if task is None:
                 return
 
-            current_agent = ""
-            async for event in team.run_stream(task=task.task):
-                if hasattr(event, "source") and hasattr(event, "content"):
-                    agent_name = str(event.source)
-                    content = str(event.content)
+            loop = asyncio.get_running_loop()
 
-                    # Track state transitions for observability
-                    if agent_name != current_agent:
+            def _tool_callback(observation: ToolObservation) -> None:
+                try:
+                    loop.call_soon_threadsafe(
+                        lambda: asyncio.create_task(self._record_tool_observation(task_id, observation))
+                    )
+                except RuntimeError:
+                    logger.debug("Event loop closed while recording tool observation")
+
+            current_agent = ""
+            state_prompt_tokens = 0
+            state_completion_tokens = 0
+
+            with tool_observer_context(_tool_callback):
+                async for event in team.run_stream(task=task.task):
+                    if not hasattr(event, "source") or not hasattr(event, "content"):
+                        continue
+
+                    agent_name = str(event.source)
+                    content = self._normalize_content(event.content)
+                    prompt_tokens, completion_tokens = self._extract_usage_tokens(event)
+                    is_workflow_agent = agent_name in _AGENT_STATE_MAP
+
+                    # Track state transitions for workflow agents only.
+                    if is_workflow_agent and agent_name != current_agent:
                         prev_agent = current_agent
                         if prev_agent:
-                            self._tracer.exit_state(task_id, estimated_tokens=len(content) // 4)
+                            self._tracer.exit_state(
+                                task_id,
+                                prompt_tokens=state_prompt_tokens,
+                                completion_tokens=state_completion_tokens,
+                            )
                         self._tracer.enter_state(task_id, state=agent_name, agent=agent_name)
                         current_agent = agent_name
+                        state_prompt_tokens = 0
+                        state_completion_tokens = 0
 
-                        # Infer workflow state (coder after tester/reviewer = revision)
                         if agent_name == "coder" and prev_agent in ("tester", "reviewer"):
                             state_name = "revision"
                         else:
@@ -155,36 +181,52 @@ class TaskService:
                             },
                         )
 
-                    payload = TaskEventRecord(
-                        timestamp=datetime.now(timezone.utc),
-                        source=agent_name,
-                        content=content,
-                    )
-                    await self._append_event(task_id, payload)
-                    await self._ws_manager.publish(
+                    if is_workflow_agent:
+                        state_prompt_tokens += prompt_tokens
+                        state_completion_tokens += completion_tokens
+
+                    await self._publish_event(
                         task_id,
-                        {
-                            "type": "event",
-                            "timestamp": payload.timestamp.isoformat(),
-                            "source": payload.source,
-                            "content": payload.content,
-                        },
+                        TaskEventRecord(
+                            timestamp=datetime.now(timezone.utc),
+                            source=agent_name,
+                            content=content,
+                        ),
                     )
 
             # Workflow completed
-            self._tracer.exit_state(task_id)
+            if current_agent:
+                self._tracer.exit_state(
+                    task_id,
+                    prompt_tokens=state_prompt_tokens,
+                    completion_tokens=state_completion_tokens,
+                )
             trace = self._tracer.end_workflow(task_id, status="completed")
             if trace:
                 self._metrics.record_workflow_end("completed", trace.duration_ms)
                 for t in trace.transitions:
                     self._metrics.record_state_transition(
-                        t.from_state, t.agent, t.duration_ms, t.estimated_tokens
+                        t.from_state,
+                        t.agent,
+                        t.duration_ms,
+                        tokens=t.estimated_tokens,
+                        prompt_tokens=t.prompt_tokens,
+                        completion_tokens=t.completion_tokens,
                     )
 
             await self._set_status(task_id, "completed")
             await self._ws_manager.publish(task_id, {"type": "status", "status": "completed"})
 
         except Exception as exc:
+            tb = traceback.format_exc()
+            await self._publish_event(
+                task_id,
+                TaskEventRecord(
+                    timestamp=datetime.now(timezone.utc),
+                    source="system_error",
+                    content=f"{exc}\n\n{tb}",
+                ),
+            )
             trace = self._tracer.end_workflow(task_id, status="failed")
             if trace:
                 self._metrics.record_workflow_end("failed", trace.duration_ms)
@@ -233,6 +275,71 @@ class TaskService:
             await session.close()
         except Exception:
             logger.warning("DB fail update failed for %s", task_id[:8])
+
+    async def _publish_event(self, task_id: str, payload: TaskEventRecord) -> None:
+        await self._append_event(task_id, payload)
+        await self._ws_manager.publish(
+            task_id,
+            {
+                "type": "event",
+                "timestamp": payload.timestamp.isoformat(),
+                "source": payload.source,
+                "content": payload.content,
+            },
+        )
+
+    async def _record_tool_observation(self, task_id: str, observation: ToolObservation) -> None:
+        self._tracer.record_tool_call(
+            task_id=task_id,
+            tool_name=observation.tool_name,
+            inputs=observation.inputs,
+            output=observation.output,
+            duration_ms=observation.duration_ms,
+            success=observation.success,
+            error=observation.error,
+            traceback=observation.traceback,
+            timestamp=observation.timestamp,
+        )
+        await self._publish_event(
+            task_id,
+            TaskEventRecord(
+                timestamp=observation.timestamp,
+                source=f"tool:{observation.tool_name}",
+                content=self._format_tool_observation(observation),
+            ),
+        )
+
+    @staticmethod
+    def _format_tool_observation(observation: ToolObservation) -> str:
+        status = "SUCCESS" if observation.success else "FAILED"
+        parts = [
+            f"[TOOL] {observation.tool_name} {status} ({observation.duration_ms:.1f}ms)",
+            f"input={observation.inputs}",
+            f"output={observation.output}",
+        ]
+        if observation.error:
+            parts.append(f"error={observation.error}")
+        if observation.traceback:
+            parts.append(f"traceback=\n{observation.traceback}")
+        return "\n".join(parts)
+
+    @staticmethod
+    def _extract_usage_tokens(event: Any) -> tuple[int, int]:
+        usage = getattr(event, "models_usage", None)
+        if usage is None:
+            return 0, 0
+        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        return prompt_tokens, completion_tokens
+
+    @staticmethod
+    def _normalize_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        try:
+            return json.dumps(content, ensure_ascii=False, default=str)
+        except Exception:
+            return str(content)
 
     async def _append_event(self, task_id: str, event: TaskEventRecord) -> None:
         async with self._lock:

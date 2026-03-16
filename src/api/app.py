@@ -83,6 +83,8 @@ def create_app() -> FastAPI:
             "duration_ms": round(trace.duration_ms, 1),
             "final_status": trace.final_status,
             "total_tokens": trace.total_tokens,
+            "total_prompt_tokens": trace.total_prompt_tokens,
+            "total_completion_tokens": trace.total_completion_tokens,
             "transitions": [
                 {
                     "from_state": t.from_state,
@@ -90,8 +92,23 @@ def create_app() -> FastAPI:
                     "agent": t.agent,
                     "duration_ms": round(t.duration_ms, 1),
                     "estimated_tokens": t.estimated_tokens,
+                    "prompt_tokens": t.prompt_tokens,
+                    "completion_tokens": t.completion_tokens,
                 }
                 for t in trace.transitions
+            ],
+            "tool_calls": [
+                {
+                    "timestamp": tc.timestamp.isoformat(),
+                    "tool_name": tc.tool_name,
+                    "inputs": tc.inputs,
+                    "output": tc.output,
+                    "duration_ms": round(tc.duration_ms, 1),
+                    "success": tc.success,
+                    "error": tc.error,
+                    "traceback": tc.traceback,
+                }
+                for tc in trace.tool_calls
             ],
         }
 

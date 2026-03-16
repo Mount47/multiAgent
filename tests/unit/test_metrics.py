@@ -63,3 +63,17 @@ class TestMetricsCollector:
         assert d["completed_workflows"] == 1
         assert "uptime_seconds" in d
         assert d["uptime_seconds"] >= 0
+
+    def test_prompt_completion_token_breakdown(self) -> None:
+        mc = MetricsCollector()
+        mc.record_state_transition(
+            "coding",
+            "coder",
+            50.0,
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+        s = mc.get_summary()
+        assert s.total_tokens == 50
+        assert s.total_prompt_tokens == 40
+        assert s.total_completion_tokens == 10

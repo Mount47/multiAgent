@@ -15,6 +15,10 @@ class MetricsSummary:
     failed_workflows: int = 0
     avg_duration_ms: float = 0.0
     total_state_transitions: int = 0
+    total_tokens: int = 0
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    # Backward compatibility for existing API consumers.
     total_estimated_tokens: int = 0
     agent_call_counts: dict[str, int] = field(default_factory=dict)
     state_avg_duration_ms: dict[str, float] = field(default_factory=dict)
@@ -30,6 +34,8 @@ class MetricsCollector:
         self._durations: list[float] = []
         self._state_transitions = 0
         self._total_tokens = 0
+        self._prompt_tokens = 0
+        self._completion_tokens = 0
         self._agent_calls: dict[str, int] = defaultdict(int)
         self._state_durations: dict[str, list[float]] = defaultdict(list)
         self._start_time = time.monotonic()
@@ -45,10 +51,22 @@ class MetricsCollector:
         self._durations.append(duration_ms)
 
     def record_state_transition(
-        self, state: str, agent: str, duration_ms: float, tokens: int = 0
+        self,
+        state: str,
+        agent: str,
+        duration_ms: float,
+        tokens: int = 0,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
     ) -> None:
         self._state_transitions += 1
-        self._total_tokens += tokens
+        if prompt_tokens or completion_tokens:
+            self._prompt_tokens += prompt_tokens
+            self._completion_tokens += completion_tokens
+            self._total_tokens += prompt_tokens + completion_tokens
+        else:
+            self._prompt_tokens += tokens
+            self._total_tokens += tokens
         self._agent_calls[agent] += 1
         self._state_durations[state].append(duration_ms)
 
@@ -64,6 +82,9 @@ class MetricsCollector:
             failed_workflows=self._failed,
             avg_duration_ms=avg_dur,
             total_state_transitions=self._state_transitions,
+            total_tokens=self._total_tokens,
+            total_prompt_tokens=self._prompt_tokens,
+            total_completion_tokens=self._completion_tokens,
             total_estimated_tokens=self._total_tokens,
             agent_call_counts=dict(self._agent_calls),
             state_avg_duration_ms=state_avg,
@@ -77,6 +98,9 @@ class MetricsCollector:
             "failed_workflows": s.failed_workflows,
             "avg_duration_ms": round(s.avg_duration_ms, 1),
             "total_state_transitions": s.total_state_transitions,
+            "total_tokens": s.total_tokens,
+            "total_prompt_tokens": s.total_prompt_tokens,
+            "total_completion_tokens": s.total_completion_tokens,
             "total_estimated_tokens": s.total_estimated_tokens,
             "agent_call_counts": s.agent_call_counts,
             "state_avg_duration_ms": {k: round(v, 1) for k, v in s.state_avg_duration_ms.items()},
