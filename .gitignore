@@ -17,8 +17,8 @@ chroma_data/
 workspace/
 
 # Frontend
-frontend/node_modules/
-frontend/dist/
+web/node_modules/
+web/dist/
 
 # OS
 .DS_Store
