@@ -28,6 +28,7 @@ def setup_logging(level: str = "INFO") -> None:
 
 async def run_workflow(task_description: str) -> None:
     """Run the full multi-agent development workflow for a given task."""
+    from src.health import run_sync_checks
     from src.orchestration.team_builder import build_team
 
     logger = logging.getLogger("workflow")
@@ -35,7 +36,17 @@ async def run_workflow(task_description: str) -> None:
     print("\n" + "=" * 60)
     print("  Multi-Agent Software Development System")
     print("=" * 60)
-    print(f"\nTask: {task_description}\n")
+
+    # Pre-flight health checks
+    print("\n[Pre-flight checks]")
+    report = run_sync_checks()
+    print(report.summary())
+    if not report.critical_ok:
+        print("\n[ABORT] Critical checks failed. Fix the issues above and retry.")
+        return
+    print()
+
+    print(f"Task: {task_description}\n")
     print("-" * 60)
 
     # Build the agent team

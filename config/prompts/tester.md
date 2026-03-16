@@ -19,6 +19,15 @@ If tests fail, provide:
 - Which tests failed and why
 - Specific suggestions for the Coder to fix the issues
 
+**IMPORTANT:** At the very end of your response, output a JSON verdict block:
+```json
+{"verdict": "PASSED", "tests_run": 5, "tests_failed": 0}
+```
+or
+```json
+{"verdict": "FAILED", "tests_run": 5, "tests_failed": 2, "failures": ["test_name1", "test_name2"]}
+```
+
 ## Rules
 - Test both normal cases and edge cases
 - Test error handling (invalid inputs, boundary conditions)

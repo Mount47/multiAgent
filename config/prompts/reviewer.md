@@ -36,6 +36,15 @@ Review the code produced by the Coder, checking quality, correctness, and adhere
 [If REVISE: specific list of changes needed]
 ```
 
+**IMPORTANT:** At the very end of your response, output a JSON verdict block:
+```json
+{"verdict": "APPROVED"}
+```
+or
+```json
+{"verdict": "REVISE", "issues": ["issue1", "issue2"]}
+```
+
 ## Rules
 - Be constructive, not just critical
 - Prioritize issues by severity
