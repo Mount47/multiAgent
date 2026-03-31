@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from src.api.websocket.manager import TaskWebSocketManager
+from src.memory.store import MemoryStore
 from src.models.factory import ModelClientFactory
 from src.observability.metrics import MetricsCollector
 from src.observability.tool_observer import ToolObservation, tool_observer_context
@@ -54,6 +55,12 @@ class TaskRecord:
     events: list[TaskEventRecord] = field(default_factory=list)
 
 
+# Agent roles that produce code (stored in code_snippets collection)
+_CODE_AGENTS = {"coder"}
+# Agent roles that produce conversation-level output
+_CONV_AGENTS = {"product_manager", "architect", "tester", "reviewer"}
+
+
 class TaskService:
     """Task lifecycle + workflow execution with DB persistence and tracing."""
 
@@ -62,10 +69,12 @@ class TaskService:
         ws_manager: TaskWebSocketManager,
         tracer: WorkflowTracer | None = None,
         metrics: MetricsCollector | None = None,
+        memory_store: MemoryStore | None = None,
     ) -> None:
         self._ws_manager = ws_manager
         self._tracer = tracer or WorkflowTracer()
         self._metrics = metrics or MetricsCollector()
+        self._memory: MemoryStore | None = memory_store
         # In-memory cache for fast reads; DB is source of truth
         self._tasks: dict[str, TaskRecord] = {}
         self._lock = asyncio.Lock()
@@ -143,8 +152,27 @@ class TaskService:
             state_prompt_tokens = 0
             state_completion_tokens = 0
 
+            # --- Memory: retrieve relevant history before starting ---
+            task_input = task.task
+            memory_context = self._retrieve_memory_context(task.task)
+            if memory_context:
+                task_input = (
+                    f"{task.task}\n\n"
+                    f"--- Relevant context from past tasks ---\n{memory_context}\n"
+                    f"--- End of context ---"
+                )
+                await self._publish_event(
+                    task_id,
+                    TaskEventRecord(
+                        timestamp=datetime.now(timezone.utc),
+                        source="memory",
+                        content=f"[MEMORY] Retrieved {len(memory_context)} chars of relevant context from past tasks.",
+                    ),
+                )
+                logger.info("[Memory] Injected %d chars of context for task %s", len(memory_context), task_id[:8])
+
             with tool_observer_context(_tool_callback):
-                async for event in team.run_stream(task=task.task):
+                async for event in team.run_stream(task=task_input):
                     if not hasattr(event, "source") or not hasattr(event, "content"):
                         continue
 
@@ -193,6 +221,10 @@ class TaskService:
                             content=content,
                         ),
                     )
+
+                    # --- Memory: auto-store agent output by role ---
+                    if is_workflow_agent and content:
+                        self._auto_save_to_memory(task_id, agent_name, content)
 
             # Workflow completed
             if current_agent:
@@ -355,3 +387,54 @@ class TaskService:
             await session.close()
         except Exception:
             pass  # Non-critical, in-memory still has it
+
+    # ------------------------------------------------------------------
+    # Memory helpers
+    # ------------------------------------------------------------------
+
+    @property
+    def memory(self) -> MemoryStore | None:
+        return self._memory
+
+    def _retrieve_memory_context(self, task_description: str) -> str:
+        """Search both collections for relevant past context. Returns empty string if Memory unavailable."""
+        if self._memory is None:
+            return ""
+        try:
+            conv_results = self._memory.search_conversations(task_description, n_results=2)
+            code_results = self._memory.search_code_snippets(task_description, n_results=2)
+            parts: list[str] = []
+            for r in conv_results:
+                phase = r["metadata"].get("phase", "unknown")
+                parts.append(f"[{phase}] {r['content'][:800]}")
+            for r in code_results:
+                fname = r["metadata"].get("filename", "code")
+                parts.append(f"[code:{fname}] {r['content'][:800]}")
+            return "\n\n".join(parts)
+        except Exception as exc:
+            logger.debug("[Memory] retrieve failed: %s", exc)
+            return ""
+
+    def _auto_save_to_memory(self, task_id: str, agent_name: str, content: str) -> None:
+        """Persist agent output to the appropriate Memory collection (fire-and-forget)."""
+        if self._memory is None:
+            return
+        # Truncate very long outputs to keep the store focused
+        stored = content[:2000]
+        doc_id = f"{task_id[:8]}_{agent_name}_{uuid.uuid4().hex[:6]}"
+        try:
+            if agent_name in _CODE_AGENTS:
+                self._memory.add_code_snippet(
+                    doc_id,
+                    stored,
+                    metadata={"task_id": task_id, "phase": "coding", "filename": agent_name},
+                )
+            elif agent_name in _CONV_AGENTS:
+                phase = _AGENT_STATE_MAP.get(agent_name, agent_name)
+                self._memory.add_conversation(
+                    doc_id,
+                    stored,
+                    metadata={"task_id": task_id, "phase": phase},
+                )
+        except Exception as exc:
+            logger.debug("[Memory] save failed for agent %s: %s", agent_name, exc)

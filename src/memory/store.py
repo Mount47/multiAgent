@@ -5,9 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import chromadb
-from chromadb.config import Settings as ChromaSettings
-
 logger = logging.getLogger(__name__)
 
 # Default collection names
@@ -19,6 +16,14 @@ class MemoryStore:
     """Vector store for persisting and retrieving agent conversation history and code."""
 
     def __init__(self, persist_dir: str = "./data/chromadb") -> None:
+        try:
+            import chromadb
+            from chromadb.config import Settings as ChromaSettings
+        except ImportError as exc:
+            raise ImportError(
+                "chromadb is required for MemoryStore. Install it with: pip install chromadb"
+            ) from exc
+
         self._client = chromadb.Client(
             ChromaSettings(
                 persist_directory=persist_dir,

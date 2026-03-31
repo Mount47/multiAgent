@@ -17,6 +17,7 @@ from src.api.routes.workflow import router as workflow_router
 from src.api.routes.workspace import router as workspace_router
 from src.api.task_service import TaskService
 from src.api.websocket.manager import TaskWebSocketManager
+from src.memory.store import MemoryStore
 from src.observability.metrics import MetricsCollector
 from src.observability.tracer import WorkflowTracer
 from src.persistence.database import init_db
@@ -30,7 +31,12 @@ logger = logging.getLogger(__name__)
 ws_manager = TaskWebSocketManager()
 tracer = WorkflowTracer()
 metrics = MetricsCollector()
-task_service = TaskService(ws_manager=ws_manager, tracer=tracer, metrics=metrics)
+try:
+    memory_store: MemoryStore | None = MemoryStore()
+except Exception as _mem_err:
+    logger.warning("MemoryStore init failed, Memory disabled: %s", _mem_err)
+    memory_store = None
+task_service = TaskService(ws_manager=ws_manager, tracer=tracer, metrics=metrics, memory_store=memory_store)
 
 
 @asynccontextmanager
@@ -111,6 +117,39 @@ def create_app() -> FastAPI:
                 for tc in trace.tool_calls
             ],
         }
+
+    @app.get("/api/memory/search")
+    async def memory_search(q: str, n: int = 5) -> dict:
+        """Search Memory collections. Returns matching conversations and code snippets."""
+        if memory_store is None:
+            return {"error": "Memory not available"}
+        conv = memory_store.search_conversations(q, n_results=n)
+        code = memory_store.search_code_snippets(q, n_results=n)
+        return {"query": q, "conversations": conv, "code_snippets": code}
+
+    @app.get("/api/memory/stats")
+    async def memory_stats() -> dict:
+        """Return record counts for each Memory collection."""
+        if memory_store is None:
+            return {"error": "Memory not available"}
+        try:
+            conv_count = memory_store._conversations.count()
+            code_count = memory_store._code_snippets.count()
+        except Exception as exc:
+            return {"error": str(exc)}
+        return {
+            "conversations": conv_count,
+            "code_snippets": code_count,
+            "total": conv_count + code_count,
+        }
+
+    @app.delete("/api/memory/clear")
+    async def memory_clear() -> dict:
+        """Clear all Memory collections (useful for testing / resetting state)."""
+        if memory_store is None:
+            return {"error": "Memory not available"}
+        memory_store.clear()
+        return {"status": "cleared"}
 
     return app
 

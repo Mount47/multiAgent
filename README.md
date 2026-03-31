@@ -88,10 +88,12 @@ agent-dev "Build a Python calculator with add, subtract, multiply, divide"
 │   ├── agents/                # 5 Agent roles + factory
 │   ├── orchestration/         # FSM + SelectorGroupChat bridge
 │   ├── tools/                 # 7 tool functions + role registry
+│   │   └── instrumented.py    # Async wrappers + tool observability decorator
 │   ├── memory/                # ChromaDB vector store (conversations + code)
 │   ├── models/                # LLM client factory (4 providers)
 │   ├── persistence/           # SQLite + SQLAlchemy async
 │   ├── observability/         # WorkflowTracer + MetricsCollector
+│   │   └── tool_observer.py   # Tool call chain observer
 │   └── api/                   # FastAPI REST + WebSocket
 ├── web/                       # React frontend (Vite + TypeScript + Tailwind)
 │   └── src/
@@ -100,7 +102,7 @@ agent-dev "Build a Python calculator with add, subtract, multiply, divide"
 │       ├── api/               # REST client + WebSocket hook
 │       └── types/             # TypeScript type definitions
 ├── tests/
-│   ├── unit/                  # 9 test files
+│   ├── unit/                  # 10 test files
 │   └── integration/
 └── docs/
     └── IMPLEMENTATION_GUIDE.md  # Detailed implementation status & roadmap
@@ -192,10 +194,11 @@ Set `DEFAULT_MODEL` in `.env` to choose the default provider.
 
 ## Observability
 
-- **WorkflowTracer** — per-task execution trace: state transitions, duration, token estimates
-- **MetricsCollector** — aggregated stats: workflow count, completion rate, avg duration, agent call frequency
-- **Structured logging** — `time | level | module | message` format
-- Data exposed via `/api/metrics` and `/api/traces/{task_id}`
+- **WorkflowTracer** — per-task trace with state transitions, duration, prompt/completion token split
+- **Tool call chain** — each tool invocation records sanitized input, output, duration, success/failure, traceback
+- **MetricsCollector** — aggregated workflow stats, transition counts, token totals, agent call frequency
+- **Error tracking** — workflow exceptions are persisted as `TaskEvent(source=system_error)` with full traceback
+- Data exposed via `/api/metrics` and `/api/traces/{task_id}` (`tool_calls` included in trace payload)
 
 ## Configuration
 
