@@ -110,8 +110,14 @@ async def task_stream(
             )
         await websocket.send_json({"type": "status", "status": task.status, "error": task.error})
 
+        # Listen for client messages (e.g., approval responses)
         while True:
-            await websocket.receive_text()
+            data = await websocket.receive_json()
+            # Handle HITL approval response
+            if data.get("type") == "approval_response":
+                action = data.get("action")
+                feedback = data.get("feedback", "")
+                await manager.submit_approval_response(task_id, action, feedback)
     except WebSocketDisconnect:
         pass
     finally:

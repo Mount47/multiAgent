@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { API } from './endpoints'
 import type { TaskEvent, TaskStatus } from '../types/api'
-import type { WsMessage } from '../types/websocket'
+import type { WsMessage, WsApprovalRequestMessage } from '../types/websocket'
+
+// HITL: Pending approval state
+export interface PendingApproval {
+  checkpoint: string
+  agent: string
+  content: string
+}
 
 export interface TaskStreamState {
   events: TaskEvent[]
@@ -10,6 +17,9 @@ export interface TaskStreamState {
   status: TaskStatus | 'idle'
   error: string | null
   isConnected: boolean
+  // HITL
+  pendingApproval: PendingApproval | null
+  sendApprovalResponse: (action: 'approve' | 'revise', feedback?: string) => void
 }
 
 export function useTaskWebSocket(taskId: string | null): TaskStreamState {
@@ -19,6 +29,7 @@ export function useTaskWebSocket(taskId: string | null): TaskStreamState {
   const [status, setStatus] = useState<TaskStatus | 'idle'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
   const reset = useCallback(() => {
@@ -28,6 +39,19 @@ export function useTaskWebSocket(taskId: string | null): TaskStreamState {
     setStatus('idle')
     setError(null)
     setIsConnected(false)
+    setPendingApproval(null)
+  }, [])
+
+  // HITL: Send approval response to backend
+  const sendApprovalResponse = useCallback((action: 'approve' | 'revise', feedback?: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'approval_response',
+        action,
+        feedback: feedback || '',
+      }))
+      setPendingApproval(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -65,6 +89,14 @@ export function useTaskWebSocket(taskId: string | null): TaskStreamState {
           })
         }
         if (msg.error) setError(msg.error)
+      } else if (msg.type === 'approval_request') {
+        // HITL: Show approval dialog
+        const approvalMsg = msg as WsApprovalRequestMessage
+        setPendingApproval({
+          checkpoint: approvalMsg.checkpoint,
+          agent: approvalMsg.content.agent,
+          content: approvalMsg.content.content,
+        })
       }
     }
 
@@ -77,5 +109,5 @@ export function useTaskWebSocket(taskId: string | null): TaskStreamState {
     }
   }, [taskId, reset])
 
-  return { events, activeState, visitedStates, status, error, isConnected }
+  return { events, activeState, visitedStates, status, error, isConnected, pendingApproval, sendApprovalResponse }
 }

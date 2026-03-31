@@ -9,6 +9,7 @@ import { EventStream } from './components/output/EventStream'
 import { CodeResultPanel } from './components/code/CodeResultPanel'
 import { MetricsDashboard } from './components/metrics/MetricsDashboard'
 import { TraceTimeline } from './components/trace/TraceTimeline'
+import { ApprovalDialog } from './components/hitl/ApprovalDialog'
 import { useTaskStream } from './hooks/useTaskStream'
 
 type CenterTab = 'workflow' | 'metrics' | 'trace'
@@ -88,6 +89,15 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <AppShell sidebar={sidebar} center={center} right={right} />
+
+      {/* HITL: Approval Dialog */}
+      {stream.pendingApproval && (
+        <ApprovalDialog
+          pending={stream.pendingApproval}
+          onApprove={() => stream.sendApprovalResponse('approve')}
+          onRevise={(feedback) => stream.sendApprovalResponse('revise', feedback)}
+        />
+      )}
     </div>
   )
 }

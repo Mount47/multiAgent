@@ -95,6 +95,15 @@ class MemoryStore:
         results = self._code_snippets.query(**kwargs)
         return self._format_results(results)
 
+    def search_code_snippets(
+        self,
+        query: str,
+        n_results: int = 5,
+        where: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Alias for search_code - for consistency with task_service naming."""
+        return self.search_code(query, n_results, where)
+
     @staticmethod
     def _format_results(results: dict) -> list[dict[str, Any]]:
         """Convert ChromaDB query results to a flat list of dicts."""

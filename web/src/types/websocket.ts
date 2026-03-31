@@ -19,4 +19,15 @@ export interface WsStatusMessage {
   error?: string
 }
 
-export type WsMessage = WsEventMessage | WsStateChangeMessage | WsStatusMessage
+// HITL: Approval request from backend
+export interface WsApprovalRequestMessage {
+  type: 'approval_request'
+  checkpoint: string
+  content: {
+    agent: string
+    content: string
+    checkpoint: string
+  }
+}
+
+export type WsMessage = WsEventMessage | WsStateChangeMessage | WsStatusMessage | WsApprovalRequestMessage

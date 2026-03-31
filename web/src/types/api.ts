@@ -28,6 +28,23 @@ export interface TaskSummary {
   error: string | null
 }
 
+// HITL: Approval request/response types
+export interface ApprovalRequest {
+  type: 'approval_request'
+  checkpoint: string
+  content: {
+    agent: string
+    content: string
+    checkpoint: string
+  }
+}
+
+export interface ApprovalResponse {
+  type: 'approval_response'
+  action: 'approve' | 'revise'
+  feedback?: string
+}
+
 export interface TaskDetail extends TaskSummary {
   events: TaskEvent[]
 }

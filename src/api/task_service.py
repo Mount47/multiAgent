@@ -33,7 +33,14 @@ _AGENT_STATE_MAP: dict[str, str] = {
     "reviewer": "code_review",
 }
 
-TaskStatus = Literal["queued", "running", "completed", "failed"]
+TaskStatus = Literal["queued", "running", "completed", "failed", "waiting_approval"]
+
+# HITL: States that require human approval before proceeding
+# Configure which checkpoints pause the workflow for user confirmation
+HITL_CHECKPOINTS = {
+    "architecture_design",  # After architect produces design, pause for approval
+    "code_review",        # After reviewer decision, pause to confirm or revise
+}
 
 
 @dataclass
@@ -53,6 +60,9 @@ class TaskRecord:
     updated_at: datetime
     error: str | None = None
     events: list[TaskEventRecord] = field(default_factory=list)
+    # HITL: Store pending approval context
+    pending_checkpoint: str | None = None
+    pending_content: dict[str, Any] | None = field(default_factory=dict)
 
 
 # Agent roles that produce code (stored in code_snippets collection)
@@ -171,6 +181,9 @@ class TaskService:
                 )
                 logger.info("[Memory] Injected %d chars of context for task %s", len(memory_context), task_id[:8])
 
+            # Buffer for HITL: store agent outputs for approval checkpoints
+            agent_outputs: dict[str, str] = {}
+
             with tool_observer_context(_tool_callback):
                 async for event in team.run_stream(task=task_input):
                     if not hasattr(event, "source") or not hasattr(event, "content"):
@@ -180,6 +193,10 @@ class TaskService:
                     content = self._normalize_content(event.content)
                     prompt_tokens, completion_tokens = self._extract_usage_tokens(event)
                     is_workflow_agent = agent_name in _AGENT_STATE_MAP
+
+                    # Buffer agent output for HITL checkpoints
+                    if is_workflow_agent and content:
+                        agent_outputs[agent_name] = content
 
                     # Track state transitions for workflow agents only.
                     if is_workflow_agent and agent_name != current_agent:
@@ -199,6 +216,37 @@ class TaskService:
                             state_name = "revision"
                         else:
                             state_name = _AGENT_STATE_MAP.get(agent_name, agent_name)
+
+                        # HITL: Check if we need to pause after the PREVIOUS agent completed
+                        if prev_agent and _AGENT_STATE_MAP.get(prev_agent) in HITL_CHECKPOINTS:
+                            checkpoint_name = _AGENT_STATE_MAP[prev_agent]
+                            prev_content = agent_outputs.get(prev_agent, "")
+                            approval = await self._request_human_approval(
+                                task_id, checkpoint_name, prev_agent, prev_content
+                            )
+                            if approval["action"] == "revise":
+                                # Inject feedback into the task and restart the workflow
+                                feedback = approval.get("feedback", "")
+                                task_input = self._inject_feedback(task_input, checkpoint_name, feedback)
+                                await self._publish_event(
+                                    task_id,
+                                    TaskEventRecord(
+                                        timestamp=datetime.now(timezone.utc),
+                                        source="hitl",
+                                        content=f"[HITL] User requested revision for {checkpoint_name}: {feedback}",
+                                    ),
+                                )
+                                # Note: In a real implementation, we'd need to restart the team run
+                                # For now, we append feedback to the task input for subsequent agents
+                            elif approval["action"] == "timeout":
+                                await self._publish_event(
+                                    task_id,
+                                    TaskEventRecord(
+                                        timestamp=datetime.now(timezone.utc),
+                                        source="hitl",
+                                        content=f"[HITL] Approval timeout for {checkpoint_name}, auto-continuing",
+                                    ),
+                                )
 
                         await self._ws_manager.publish(
                             task_id,
@@ -438,3 +486,50 @@ class TaskService:
                 )
         except Exception as exc:
             logger.debug("[Memory] save failed for agent %s: %s", agent_name, exc)
+
+    # ------------------------------------------------------------------
+    # HITL (Human-in-the-loop) helpers
+    # ------------------------------------------------------------------
+
+    async def _request_human_approval(
+        self,
+        task_id: str,
+        checkpoint: str,
+        agent_name: str,
+        content: str,
+    ) -> dict[str, Any]:
+        """
+        Pause workflow and wait for human approval at a checkpoint.
+        Returns: {"action": "approve" | "revise" | "timeout", "feedback": str}
+        """
+        await self._set_status(task_id, "waiting_approval")
+
+        # Store pending context for potential resume
+        async with self._lock:
+            task = self._tasks.get(task_id)
+            if task:
+                task.pending_checkpoint = checkpoint
+                task.pending_content = {
+                    "agent": agent_name,
+                    "content": content[:2000],  # Truncate for display
+                }
+
+        # Request approval via WebSocket
+        result = await self._ws_manager.request_approval(
+            task_id,
+            checkpoint,
+            {
+                "agent": agent_name,
+                "content": content[:2000],
+                "checkpoint": checkpoint,
+            },
+        )
+
+        await self._set_status(task_id, "running")
+        return result
+
+    @staticmethod
+    def _inject_feedback(task_input: str, checkpoint: str, feedback: str) -> str:
+        """Inject user feedback into the task input for subsequent processing."""
+        feedback_section = f"\n\n--- User Feedback on {checkpoint} ---\n{feedback}\n--- End Feedback ---"
+        return task_input + feedback_section
