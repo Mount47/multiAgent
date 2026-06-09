@@ -1,3 +1,5 @@
+import { stateLabel, agentLabel } from '../../labels'
+
 const AGENT_COLORS: Record<string, string> = {
   product_manager: '#4a9eff',
   architect: '#c77dff',
@@ -17,13 +19,13 @@ interface Props {
 
 export function TraceSegment({ fromState, toState, agent, durationMs, tokens, widthPercent }: Props) {
   const color = AGENT_COLORS[agent] || '#49c6e5'
-  const label = fromState.replace(/_/g, ' ')
+  const label = stateLabel(fromState)
 
   return (
     <div
       className="group relative h-10 rounded-md flex items-center justify-center overflow-hidden cursor-default transition-opacity hover:opacity-90"
       style={{ width: `${Math.max(widthPercent, 3)}%`, backgroundColor: color + '33', borderLeft: `3px solid ${color}` }}
-      title={`${fromState} → ${toState}\nAgent: ${agent}\nDuration: ${durationMs}ms\nTokens: ${tokens}`}
+      title={`${stateLabel(fromState)} → ${stateLabel(toState)}\nAgent：${agentLabel(agent)}\n耗时：${durationMs}ms\nTokens：${tokens}`}
     >
       {widthPercent > 8 && (
         <span className="text-[10px] text-text truncate px-1">{label}</span>

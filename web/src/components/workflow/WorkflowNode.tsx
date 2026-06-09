@@ -35,7 +35,7 @@ export function WorkflowNode({ node, status }: Props) {
         fill={status === 'visited' && isTerminal ? '#ffd166' : c.text}
         fontSize="13" fontWeight="600"
       >
-        {isTerminal && status === 'visited' ? 'Approved \u2713' : node.label}
+        {isTerminal && status === 'visited' ? '\u5df2\u901a\u8fc7 \u2713' : node.label}
       </text>
       {node.agent && (
         <>

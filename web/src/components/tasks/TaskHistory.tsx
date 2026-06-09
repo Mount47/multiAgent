@@ -13,18 +13,18 @@ export function TaskHistory({ selectedTaskId, onSelect }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold m-0">History</h2>
+        <h2 className="text-sm font-semibold m-0">历史任务</h2>
         <button
           onClick={refetch}
           className="text-[11px] text-accent bg-transparent border-none cursor-pointer hover:underline"
         >
-          Refresh
+          刷新
         </button>
       </div>
       {loading ? (
         <div className="flex justify-center py-4"><Spinner /></div>
       ) : tasks.length === 0 ? (
-        <div className="text-muted text-[12px] text-center py-3">No tasks yet</div>
+        <div className="text-muted text-[12px] text-center py-3">暂无任务</div>
       ) : (
         <div className="flex flex-col gap-1 max-h-[45vh] overflow-y-auto">
           {tasks.map((t) => (

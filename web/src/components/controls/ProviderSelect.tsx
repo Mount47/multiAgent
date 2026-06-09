@@ -9,7 +9,7 @@ interface Props {
 export function ProviderSelect({ providers, value, onChange }: Props) {
   return (
     <div>
-      <label className="block text-muted text-[13px] mb-1">Model Provider</label>
+      <label className="block text-muted text-[13px] mb-1">模型提供方</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}

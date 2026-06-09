@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { agentLabel } from '../../labels'
 
 const AGENT_COLORS: Record<string, string> = {
   product_manager: '#4a9eff',
@@ -21,7 +22,7 @@ export function EventItem({ timestamp, source, content }: Props) {
   return (
     <div className="mb-2.5 pb-2.5 border-b border-[#14233f]">
       <div className="text-muted text-[12px] mb-0.5">
-        [{time}] <span style={{ color }} className="font-semibold">{source}</span>
+        [{time}] <span style={{ color }} className="font-semibold">{agentLabel(source)}</span>
       </div>
       <div className="text-[13px] leading-relaxed whitespace-pre-wrap">{content}</div>
     </div>

@@ -5,7 +5,7 @@ import type { MetricsResponse } from '../types/api'
 export function useMetrics(enabled: boolean, intervalMs = 10000) {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const load = useCallback(() => {
     fetchMetrics()

@@ -15,9 +15,9 @@ export function Header() {
 
   return (
     <header className="flex items-center justify-between px-5 py-3 border-b border-line">
-      <h1 className="text-base font-bold tracking-wide m-0">Multi-Agent Dev Console</h1>
+      <h1 className="text-base font-bold tracking-wide m-0">多 Agent 开发控制台</h1>
       <div className="flex items-center gap-2 text-[12px] text-muted">
-        <span>Backend</span>
+        <span>后端</span>
         <span
           className={`w-2 h-2 rounded-full ${
             healthy === null ? 'bg-muted' : healthy ? 'bg-ok' : 'bg-err'

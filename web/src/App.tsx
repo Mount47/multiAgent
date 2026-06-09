@@ -15,6 +15,14 @@ import { useTaskStream } from './hooks/useTaskStream'
 type CenterTab = 'workflow' | 'metrics' | 'trace'
 type RightTab = 'output' | 'code'
 
+const TAB_LABELS: Record<string, string> = {
+  workflow: '工作流',
+  metrics: '指标',
+  trace: '链路追踪',
+  output: '输出',
+  code: '代码',
+}
+
 function TabBar<T extends string>({ tabs, active, onChange }: { tabs: T[]; active: T; onChange: (t: T) => void }) {
   return (
     <div className="flex gap-1 mb-2">
@@ -28,7 +36,7 @@ function TabBar<T extends string>({ tabs, active, onChange }: { tabs: T[]; activ
               : 'bg-transparent text-muted hover:text-text'
           }`}
         >
-          {t.charAt(0).toUpperCase() + t.slice(1)}
+          {TAB_LABELS[t] ?? t}
         </button>
       ))}
     </div>

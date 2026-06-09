@@ -1,6 +1,7 @@
 import { StatusBadge } from '../controls/StatusBadge'
 import type { TaskSummary } from '../../types/api'
 import { formatDistanceToNow } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 
 interface Props {
   task: TaskSummary
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function TaskHistoryItem({ task, selected, onClick }: Props) {
-  const ago = formatDistanceToNow(new Date(task.created_at), { addSuffix: true })
+  const ago = formatDistanceToNow(new Date(task.created_at), { addSuffix: true, locale: zhCN })
 
   return (
     <button

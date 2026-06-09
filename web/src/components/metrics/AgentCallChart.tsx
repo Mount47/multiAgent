@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { agentLabel } from '../../labels'
 
 const COLORS = ['#4a9eff', '#c77dff', '#41d39c', '#ffd166', '#49c6e5']
 
@@ -8,8 +9,8 @@ interface Props {
   valueLabel?: string
 }
 
-export function AgentCallChart({ data, title, valueLabel = 'calls' }: Props) {
-  const items = Object.entries(data).map(([name, value]) => ({ name, value }))
+export function AgentCallChart({ data, title, valueLabel = '次' }: Props) {
+  const items = Object.entries(data).map(([name, value]) => ({ name: agentLabel(name), value }))
 
   if (items.length === 0) return null
 
@@ -23,7 +24,7 @@ export function AgentCallChart({ data, title, valueLabel = 'calls' }: Props) {
           <Tooltip
             contentStyle={{ background: '#111b2e', border: '1px solid #1f3358', borderRadius: 8, fontSize: 12 }}
             labelStyle={{ color: '#e8eefc' }}
-            formatter={(v: number) => [`${v} ${valueLabel}`, '']}
+            formatter={(v) => [`${v} ${valueLabel}`, '']}
           />
           <Bar dataKey="value" radius={[4, 4, 0, 0]}>
             {items.map((_, i) => (

@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { stateLabel } from '../../labels'
 
 const STATE_COLORS: Record<string, string> = {
   requirements_analysis: '#4a9eff',
@@ -15,7 +16,7 @@ interface Props {
 
 export function StateDurationChart({ data }: Props) {
   const items = Object.entries(data).map(([name, value]) => ({
-    name: name.replace(/_/g, ' '),
+    name: stateLabel(name),
     value: Math.round(value),
     key: name,
   }))
@@ -24,7 +25,7 @@ export function StateDurationChart({ data }: Props) {
 
   return (
     <div className="bg-deep-bg border border-line rounded-xl p-4">
-      <div className="text-muted text-[12px] mb-3">Avg Duration per State (ms)</div>
+      <div className="text-muted text-[12px] mb-3">各状态平均耗时 (ms)</div>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={items} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
           <XAxis dataKey="name" tick={{ fill: '#9bb0d9', fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -32,7 +33,7 @@ export function StateDurationChart({ data }: Props) {
           <Tooltip
             contentStyle={{ background: '#111b2e', border: '1px solid #1f3358', borderRadius: 8, fontSize: 12 }}
             labelStyle={{ color: '#e8eefc' }}
-            formatter={(v: number) => [`${v} ms`, '']}
+            formatter={(v) => [`${v} ms`, '']}
           />
           <Bar dataKey="value" radius={[4, 4, 0, 0]}>
             {items.map((item) => (

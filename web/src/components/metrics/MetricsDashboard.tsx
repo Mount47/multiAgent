@@ -13,7 +13,7 @@ export function MetricsDashboard({ enabled }: Props) {
   const { metrics, loading } = useMetrics(enabled)
 
   if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
-  if (!metrics) return <EmptyState message="No metrics available. Run a task first." />
+  if (!metrics) return <EmptyState message="暂无指标数据，请先运行一个任务。" />
 
   const completionRate = metrics.total_workflows > 0
     ? Math.round((metrics.completed_workflows / metrics.total_workflows) * 100)
@@ -22,15 +22,15 @@ export function MetricsDashboard({ enabled }: Props) {
   return (
     <div className="flex flex-col gap-3 h-[74vh] overflow-y-auto">
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Workflows" value={metrics.total_workflows} color="text-accent" />
-        <StatCard label="Completion Rate" value={`${completionRate}%`} color="text-ok" />
-        <StatCard label="Avg Duration" value={`${Math.round(metrics.avg_duration_ms)}ms`} />
-        <StatCard label="Est. Tokens" value={metrics.total_estimated_tokens.toLocaleString()} color="text-warn" />
+        <StatCard label="总工作流数" value={metrics.total_workflows} color="text-accent" />
+        <StatCard label="完成率" value={`${completionRate}%`} color="text-ok" />
+        <StatCard label="平均耗时" value={`${Math.round(metrics.avg_duration_ms)}ms`} />
+        <StatCard label="预估 Token" value={metrics.total_estimated_tokens.toLocaleString()} color="text-warn" />
       </div>
-      <AgentCallChart data={metrics.agent_call_counts} title="Agent Call Frequency" />
+      <AgentCallChart data={metrics.agent_call_counts} title="各 Agent 调用次数" />
       <StateDurationChart data={metrics.state_avg_duration_ms} />
       <div className="text-[11px] text-muted text-right">
-        Uptime: {Math.round(metrics.uptime_seconds)}s | Transitions: {metrics.total_state_transitions}
+        运行时长：{Math.round(metrics.uptime_seconds)}s ｜ 状态转移：{metrics.total_state_transitions} 次
       </div>
     </div>
   )

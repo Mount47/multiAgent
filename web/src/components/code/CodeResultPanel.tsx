@@ -33,7 +33,7 @@ export function CodeResultPanel() {
   useEffect(() => { load() }, [])
 
   if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
-  if (files.length === 0) return <EmptyState message="No generated files yet. Run a task to see code output." />
+  if (files.length === 0) return <EmptyState message="暂无生成的文件。运行任务后，这里会显示生成的代码。" />
 
   const file = files[selected]
 
@@ -57,7 +57,7 @@ export function CodeResultPanel() {
           onClick={load}
           className="ml-auto text-[11px] text-accent bg-transparent border-none cursor-pointer hover:underline"
         >
-          Refresh
+          刷新
         </button>
       </div>
       <div className="flex-1 overflow-auto rounded-[10px] border border-line">

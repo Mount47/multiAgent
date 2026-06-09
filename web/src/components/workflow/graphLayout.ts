@@ -22,23 +22,23 @@ export interface LayoutEdge {
 }
 
 export const NODES: LayoutNode[] = [
-  { id: 'requirements_analysis', label: 'Requirements', agent: 'PM', x: 173, y: 15 },
-  { id: 'architecture_design', label: 'Architecture', agent: 'Architect', x: 173, y: 105 },
-  { id: 'coding', label: 'Coding', agent: 'Coder', x: 173, y: 195 },
-  { id: 'testing', label: 'Testing', agent: 'Tester', x: 173, y: 285 },
-  { id: 'code_review', label: 'Code Review', agent: 'Reviewer', x: 48, y: 390 },
-  { id: 'revision', label: 'Revision', agent: 'Coder', x: 298, y: 390 },
-  { id: 'approved', label: 'Approved', agent: null, x: 48, y: 500 },
+  { id: 'requirements_analysis', label: '需求分析', agent: '产品经理', x: 173, y: 15 },
+  { id: 'architecture_design', label: '架构设计', agent: '架构师', x: 173, y: 105 },
+  { id: 'coding', label: '编码', agent: '程序员', x: 173, y: 195 },
+  { id: 'testing', label: '测试', agent: '测试', x: 173, y: 285 },
+  { id: 'code_review', label: '代码评审', agent: '评审', x: 48, y: 390 },
+  { id: 'revision', label: '修订', agent: '程序员', x: 298, y: 390 },
+  { id: 'approved', label: '已通过', agent: null, x: 48, y: 500 },
 ]
 
 export const EDGES: LayoutEdge[] = [
   { id: 'e0', from: 'requirements_analysis', to: 'architecture_design', label: '' },
   { id: 'e1', from: 'architecture_design', to: 'coding', label: '' },
   { id: 'e2', from: 'coding', to: 'testing', label: '' },
-  { id: 'e3', from: 'testing', to: 'code_review', label: 'passed', guard: 'tests_passed' },
-  { id: 'e4', from: 'testing', to: 'revision', label: 'failed', guard: 'tests_failed' },
-  { id: 'e5', from: 'code_review', to: 'approved', label: 'approved', guard: 'review_approved' },
-  { id: 'e6', from: 'code_review', to: 'revision', label: 'revise', guard: 'review_revision_needed' },
+  { id: 'e3', from: 'testing', to: 'code_review', label: '通过', guard: 'tests_passed' },
+  { id: 'e4', from: 'testing', to: 'revision', label: '失败', guard: 'tests_failed' },
+  { id: 'e5', from: 'code_review', to: 'approved', label: '通过', guard: 'review_approved' },
+  { id: 'e6', from: 'code_review', to: 'revision', label: '打回', guard: 'review_revision_needed' },
   { id: 'e7', from: 'revision', to: 'testing', label: '' },
 ]
 

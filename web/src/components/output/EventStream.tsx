@@ -20,7 +20,7 @@ export function EventStream({ events }: Props) {
       className="h-[74vh] overflow-auto bg-deep-bg rounded-[10px] p-3 border border-line text-[13px] leading-relaxed"
     >
       {events.length === 0 ? (
-        <EmptyState message="Start a task to see agent outputs here." />
+        <EmptyState message="启动任务后，这里会实时显示各 Agent 的输出。" />
       ) : (
         events.map((ev, i) => (
           <EventItem key={`${ev.timestamp}-${i}`} timestamp={ev.timestamp} source={ev.source} content={ev.content} />
