@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 from autogen_ext.models.openai import OpenAIChatCompletionClient
@@ -15,6 +16,26 @@ from config.settings import settings
 from src.models.config import ModelsConfig, ProviderConfig
 
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "models.yaml"
+
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+
+
+def _bypass_proxy_for_local(base_url: str) -> None:
+    """Ensure local base_urls bypass any HTTP(S)_PROXY (e.g. Clash/v2ray).
+
+    A system proxy set for reaching Gemini/OpenAI will otherwise intercept
+    calls to a local Ollama server and return ``502 Bad Gateway``. We only
+    add local hosts to NO_PROXY so remote providers keep using the proxy.
+    """
+    host = (urlparse(base_url).hostname or "").lower()
+    if host not in _LOCAL_HOSTS:
+        return
+    existing = os.environ.get("NO_PROXY", "") or os.environ.get("no_proxy", "")
+    entries = {e.strip() for e in existing.split(",") if e.strip()}
+    if not _LOCAL_HOSTS <= entries:
+        merged = ",".join(sorted(entries | _LOCAL_HOSTS))
+        os.environ["NO_PROXY"] = merged
+        os.environ["no_proxy"] = merged
 
 
 def load_models_config(config_path: Path = _CONFIG_PATH) -> ModelsConfig:
@@ -30,6 +51,9 @@ def create_model_client(provider_config: ProviderConfig) -> OpenAIChatCompletion
     DeepSeek and Ollama both expose OpenAI-compatible APIs,
     so a single client type handles all providers via different base_url.
     """
+    # Local servers (Ollama) must bypass any system HTTP proxy.
+    _bypass_proxy_for_local(provider_config.base_url)
+
     # Resolve API key from environment variable
     api_key = "placeholder"
     if provider_config.api_key_env:
@@ -39,6 +63,10 @@ def create_model_client(provider_config: ProviderConfig) -> OpenAIChatCompletion
                 f"Environment variable {provider_config.api_key_env} is not set. "
                 f"Please set it in your .env file."
             )
+
+    extra: dict = {}
+    if provider_config.extra_body:
+        extra["extra_body"] = provider_config.extra_body
 
     return OpenAIChatCompletionClient(
         model=provider_config.model,
@@ -53,6 +81,7 @@ def create_model_client(provider_config: ProviderConfig) -> OpenAIChatCompletion
             "json_output": provider_config.model_info.json_output,
             "family": provider_config.model_info.family,
         },
+        **extra,
     )
 
 

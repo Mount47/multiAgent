@@ -46,6 +46,23 @@ providers:
       json_output: true
       family: "qwen"
 
+  # DeepSeek hosted on Alibaba Cloud Model Studio (Bailian / DashScope).
+  # Uses a DashScope key (sk-...), NOT a deepseek.com key.
+  aliyun-deepseek-flash:
+    model: "deepseek-v4-flash"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key_env: "DASHSCOPE_API_KEY"
+    temperature: 0.3
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      family: "unknown"
+    # deepseek-v4-flash is a reasoning model; with thinking on, the tool-use
+    # reflection step returns empty content and AutoGen aborts. Disable it.
+    extra_body:
+      enable_thinking: false
+
 # Which model provider each agent role uses
 # Override DEFAULT_MODEL from .env per-agent if needed
 agent_models:

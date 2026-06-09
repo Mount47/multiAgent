@@ -15,5 +15,10 @@ def create_coder(model_client: OpenAIChatCompletionClient) -> AssistantAgent:
         system_message=load_system_prompt("coder"),
         model_client=model_client,
         tools=get_tools_for_role("coder"),
-        reflect_on_tool_use=True,  # Agent reviews tool output before responding
+        # Let the model loop through tool calls and end on a natural text summary.
+        # We avoid reflect_on_tool_use because its forced tool_choice="none" pass
+        # is ignored by some providers (e.g. DeepSeek on DashScope), which keep
+        # returning tool calls and crash with "no valid text response".
+        max_tool_iterations=5,
+        reflect_on_tool_use=False,
     )

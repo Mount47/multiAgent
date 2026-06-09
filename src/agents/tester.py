@@ -15,5 +15,8 @@ def create_tester(model_client: OpenAIChatCompletionClient) -> AssistantAgent:
         system_message=load_system_prompt("tester"),
         model_client=model_client,
         tools=get_tools_for_role("tester"),
-        reflect_on_tool_use=True,
+        # See coder.py: loop tool calls and finish on a natural text verdict
+        # rather than the forced-reflection pass that some providers break on.
+        max_tool_iterations=5,
+        reflect_on_tool_use=False,
     )

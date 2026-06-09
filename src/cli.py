@@ -97,6 +97,16 @@ async def run_workflow(task_description: str) -> None:
 
 def main() -> None:
     """Main CLI entry point."""
+    # Windows consoles default to GBK; agent output may contain characters
+    # outside it (e.g. accented letters in generated test cases). Without
+    # this, print() raises UnicodeEncodeError and tears down the whole event
+    # loop (surfacing as CancelledError / "task_done() called too many times").
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
     setup_logging()
 
     if len(sys.argv) > 1:

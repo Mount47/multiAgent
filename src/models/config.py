@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -22,6 +24,10 @@ class ProviderConfig(BaseModel):
     api_key_env: str = ""
     temperature: float = 0.3
     model_info: ModelInfo = ModelInfo()
+    # Provider-specific options forwarded to the OpenAI `create` call via
+    # `extra_body` (e.g. DashScope's {"enable_thinking": false} to turn off
+    # reasoning, which otherwise returns empty content during tool-use reflection).
+    extra_body: dict[str, Any] | None = None
 
 
 class ModelsConfig(BaseModel):
