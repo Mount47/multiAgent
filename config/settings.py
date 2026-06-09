@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Paths
     project_root: Path = Path(__file__).parent.parent
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

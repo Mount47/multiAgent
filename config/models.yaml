@@ -3,7 +3,7 @@
 
 providers:
   gemini:
-    model: "gemini-2.0-flash"
+    model: "gemini-2.5-flash-lite"
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
     api_key_env: "GEMINI_API_KEY"
     temperature: 0.3
