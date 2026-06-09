@@ -12,6 +12,8 @@ providers:
       function_calling: true
       json_output: true
       family: "unknown"
+    # If Gemini is rate-limited/exhausted, degrade to DashScope DeepSeek.
+    fallback: ["aliyun-deepseek-flash"]
 
   openai-gpt4:
     model: "gpt-4o"
@@ -62,6 +64,8 @@ providers:
     # reflection step returns empty content and AutoGen aborts. Disable it.
     extra_body:
       enable_thinking: false
+    # If DashScope is overloaded (503) or rate-limited, degrade to Gemini.
+    fallback: ["gemini"]
 
 # Which model provider each agent role uses
 # Override DEFAULT_MODEL from .env per-agent if needed

@@ -28,6 +28,10 @@ class ProviderConfig(BaseModel):
     # `extra_body` (e.g. DashScope's {"enable_thinking": false} to turn off
     # reasoning, which otherwise returns empty content during tool-use reflection).
     extra_body: dict[str, Any] | None = None
+    # Ordered list of provider names to fall back to when this provider is
+    # exhausted (retries used up, or auth/endpoint error). Unavailable
+    # fallbacks (e.g. missing API key) are skipped at build time.
+    fallback: list[str] = []
 
 
 class ModelsConfig(BaseModel):

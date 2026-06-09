@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 60.0
     llm_max_retries: int = 2
 
+    # Resilience layer (ResilientChatCompletionClient): classified retry + fallback.
+    # Owns retries explicitly, so the underlying OpenAI client uses max_retries=0.
+    llm_retry_max_attempts: int = 3
+    llm_retry_base_delay: float = 1.0
+    llm_retry_max_delay: float = 30.0
+
     # Application
     workspace_dir: str = "./workspace"
     log_level: str = "INFO"

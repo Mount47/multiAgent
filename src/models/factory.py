@@ -9,11 +9,17 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+import logging
+
 import yaml
+from autogen_core.models import ChatCompletionClient
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from config.settings import settings
 from src.models.config import ModelsConfig, ProviderConfig
+from src.models.resilient_client import ResilientChatCompletionClient
+
+logger = logging.getLogger(__name__)
 
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "models.yaml"
 
@@ -74,7 +80,9 @@ def create_model_client(provider_config: ProviderConfig) -> OpenAIChatCompletion
         api_key=api_key,
         temperature=provider_config.temperature,
         timeout=settings.llm_timeout_seconds,
-        max_retries=settings.llm_max_retries,
+        # ResilientChatCompletionClient owns the retry policy; keep the inner
+        # SDK from retrying too so attempts aren't multiplied.
+        max_retries=0,
         model_info={
             "vision": provider_config.model_info.vision,
             "function_calling": provider_config.model_info.function_calling,
@@ -96,14 +104,23 @@ class ModelClientFactory:
 
     def __init__(self, config_path: Path = _CONFIG_PATH):
         self._config = load_models_config(config_path)
-        self._clients: dict[str, OpenAIChatCompletionClient] = {}
+        self._raw_clients: dict[str, OpenAIChatCompletionClient] = {}
+        self._clients: dict[str, ChatCompletionClient] = {}
 
     @property
     def config(self) -> ModelsConfig:
         return self._config
 
-    def get_client(self, provider_name: str) -> OpenAIChatCompletionClient:
-        """Get or create a model client for the given provider name."""
+    def _get_raw_client(self, provider_name: str) -> OpenAIChatCompletionClient:
+        """Build (and cache) the underlying OpenAI client for a provider."""
+        if provider_name not in self._raw_clients:
+            self._raw_clients[provider_name] = create_model_client(
+                self._config.providers[provider_name]
+            )
+        return self._raw_clients[provider_name]
+
+    def get_client(self, provider_name: str) -> ChatCompletionClient:
+        """Get a resilient client (retry + fallback) for the given provider."""
         if provider_name not in self._config.providers:
             available = ", ".join(self._config.providers.keys())
             raise ValueError(
@@ -111,12 +128,30 @@ class ModelClientFactory:
             )
 
         if provider_name not in self._clients:
-            provider_config = self._config.providers[provider_name]
-            self._clients[provider_name] = create_model_client(provider_config)
+            clients: list[tuple[str, ChatCompletionClient]] = [
+                (provider_name, self._get_raw_client(provider_name))
+            ]
+            # Resolve fallback chain; skip any that can't be built (e.g. no key).
+            for fb_name in self._config.providers[provider_name].fallback:
+                if fb_name == provider_name or fb_name not in self._config.providers:
+                    continue
+                try:
+                    clients.append((fb_name, self._get_raw_client(fb_name)))
+                except Exception as exc:  # noqa: BLE001
+                    logger.info(
+                        "[LLM] fallback provider '%s' unavailable, skipping: %s",
+                        fb_name, exc,
+                    )
+            self._clients[provider_name] = ResilientChatCompletionClient(
+                clients,
+                max_attempts=settings.llm_retry_max_attempts,
+                base_delay=settings.llm_retry_base_delay,
+                max_delay=settings.llm_retry_max_delay,
+            )
 
         return self._clients[provider_name]
 
-    def get_client_for_agent(self, agent_role: str) -> OpenAIChatCompletionClient:
+    def get_client_for_agent(self, agent_role: str) -> ChatCompletionClient:
         """Get the model client assigned to a specific agent role.
 
         Falls back to DEFAULT_MODEL from environment if agent has no override.
