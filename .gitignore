@@ -14,6 +14,7 @@ __pycache__/
 # Data
 *.db
 chroma_data/
+data/chromadb/
 workspace/
 
 # Frontend
